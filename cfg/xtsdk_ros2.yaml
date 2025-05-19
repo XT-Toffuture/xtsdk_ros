@@ -1,0 +1,124 @@
+
+enum_para:
+  freq: 
+    12MHz: 0
+    6MHz: 1
+    24MHz: 2
+    3MHz: 3
+    1_5MHz: 4
+    0_75MHz: 5   
+    4_8MHz: 6 
+
+  freq1: 
+    12MHz: 0
+    6MHz: 1
+    24MHz: 2
+    3MHz: 3
+    1_5MHz: 4
+    0_75MHz: 5   
+    4_8MHz: 6 
+
+  freq2: 
+    12MHz: 0
+    6MHz: 1
+    24MHz: 2
+    3MHz: 3
+    1_5MHz: 4
+    0_75MHz: 5   
+    4_8MHz: 6 
+
+  freq3: 
+    12MHz: 0
+    6MHz: 1
+    24MHz: 2
+    3MHz: 3
+    1_5MHz: 4
+    0_75MHz: 5   
+    4_8MHz: 6     
+  
+  freq4: 
+    12MHz: 0
+    6MHz: 1
+    24MHz: 2
+    3MHz: 3
+    1_5MHz: 4
+    0_75MHz: 5   
+    4_8MHz: 6    
+
+  HDR: 
+    HDR_off: 0
+    HDR_temporal: 1
+    # HDR_SPATIAL: 2
+  imgType: 
+    Distance: 0
+    DistranceAmplitude: 1
+    Grayscale: 2
+    Pointcloud: 3
+    PointcloudAmp: 4    
+  cloud_coord:
+    Left_Up_Front: 0
+    Front_Left_Up: 1   
+num_para:
+  intgs: 
+    min: 0
+    max: 20000
+  int1: 
+    min: 0
+    max: 3000
+  int2: 
+    min: 0
+    max: 3000
+  int3:
+    min: 0
+    max: 3000
+  int4:
+    min: 0
+    max: 3000
+  minLSB: 
+    min: 0
+    max: 2000
+  cut_corner:
+    min: 0
+    max: 120
+  maxfps:
+    min: 0
+    max: 60
+bool_para:
+  start_stream: false
+  usb_com: true
+  gray_on: true
+  is_use_devconfig: true
+  # use_sim_time: false
+
+general_para:
+  connect_address: 192.168.0.101
+  frame_id: sensor_frame
+  topic_name: points
+  usb_com_name: /dev/ttyACM0
+
+
+########如需修改加载后参数 请修改以下项########
+default:
+  connect_address: 192.168.0.101
+  freq: 1
+  freq1: 2
+  freq2: 0
+  freq3: 1
+  freq4: 1
+  HDR: 1
+  imgType: 4
+  cloud_coord: 1
+  intgs: 2000
+  int1: 100
+  int2: 1000
+  int3: 0
+  int4: 0
+  minLSB: 80
+  cut_corner: 60
+  maxfps: 30
+  start_stream: true
+  frame_id: sensor_frame
+  topic_name: points
+  usb_com: true
+  gray_on: true
+  # use_sim_time: false

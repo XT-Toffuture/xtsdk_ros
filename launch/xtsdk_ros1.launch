@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+
+<launch>
+  <arg name="ns" default="xtsdk_ros"/>
+  
+
+  <group ns="$(arg ns)">
+    <node pkg="xtsdk_ros"
+          type="xtsdk_node"
+          name="xtsdk_node"
+          output="screen"
+          respawn="false">
+
+    </node>
+
+    <node name="rviz" pkg="rviz" type="rviz" args= "-d $(find xtsdk_ros)/rviz/xtsdk_ros1.rviz" > </node>
+    <node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure"> </node>
+
+  </group>
+</launch>

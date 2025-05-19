@@ -1,0 +1,56 @@
+cmake_minimum_required(VERSION 3.5)
+project(xtsdk_ros)
+
+add_compile_options(-std=c++14)
+
+find_package(catkin REQUIRED COMPONENTS
+  dynamic_reconfigure
+  pcl_conversions
+  pcl_ros
+  roscpp
+  sensor_msgs
+  tf
+)
+set(PROJECT_DIR "${CMAKE_SOURCE_DIR}/xtsdk_ros/xtsdk_cpp" CACHE STRING "Project directory")
+# add_definitions(-DPROJECT_DIR="${CMAKE_SOURCE_DIR}/xtsdk_ros/xtsdk_cpp")
+message("*****************CMAKER SOURCE DIR: ${PROJECT_DIR}*****************")
+
+## Generate dynamic reconfigure parameters in the 'cfg' folder
+generate_dynamic_reconfigure_options(cfg/xtsdk_ros1.cfg)
+
+## catkin specific configuration
+catkin_package(
+  CATKIN_DEPENDS roscpp dynamic_reconfigure message_runtime sensor_msgs
+)
+
+## Specify additional locations of header files
+add_subdirectory(xtsdk_cpp/xtsdk)
+include_directories(xtsdk_cpp/xtsdk 
+${catkin_INCLUDE_DIRS}
+include)
+
+
+add_executable(xtsdk_node node_src/xtsdk_ros1.cpp )
+
+# make sure configure headers are built before any node using them
+add_dependencies(xtsdk_node ${PROJECT_NAME}_gencfg )
+
+add_dependencies(xtsdk_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+target_link_libraries(xtsdk_node ${catkin_LIBRARIES} xtsdk)
+#target_link_libraries(xtsdk_node ${OpenCV_LIBS})
+
+add_executable(pcd_to_bag_converter node_src/bag_convert.cpp)
+target_link_libraries(pcd_to_bag_converter ${catkin_LIBRARIES} xtsdk)
+
+## Install 
+
+install( TARGETS xtsdk_node 
+   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION} )
+
+install( DIRECTORY cfg launch rviz
+	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION} )
+
+
