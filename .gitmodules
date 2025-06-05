@@ -1,4 +1,0 @@
-[submodule "xtsdk_cpp"]
-	path = xtsdk_cpp
-	url = http://192.168.0.17:980/sdk/xtsdk_cpp.git
-	branch = main  
