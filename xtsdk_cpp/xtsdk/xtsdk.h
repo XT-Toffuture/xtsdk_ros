@@ -236,9 +236,10 @@ namespace XinTan
         std::string getStateStr();  // 获取SDK 状态字符串
 
         int getfps(); // 获取SDK计算的帧率
+        int getimufps();
 
         // sdk中支持的滤波，算法运行在主机上
-        void setPostProcess(const float &dilation_pixels, const uint8_t &mode, const uint8_t &winsize, uint8_t motion_size = 5);
+        void setPostProcess(const float &dilation_pixels, const uint8_t &mode, uint8_t winsize = 9, uint8_t motion_size = 5);
         bool setSdkKalmanFilter(uint16_t factor, uint16_t threshold, uint16_t timedf = 300); // 设置sdk中的卡尔曼滤波
         bool setSdkEdgeFilter(uint16_t threshold);                                           // 设置sdk中的飞点滤波
         bool setSdkMedianFilter(uint16_t size);                                              // 设置sdk中的中值滤波
@@ -269,6 +270,10 @@ namespace XinTan
         void setCutCorner(uint32_t cutvalue); // 设置四角切除的
 
         void setReflectivityCoef(float coef); // 设置计算发射率的系数
+
+        void setPlayState(bool is_playing);
+
+        bool getPlayState();
 
         /***********  命令相关 API **********************/
         bool testDev(); // 测试设备命令交互是否通

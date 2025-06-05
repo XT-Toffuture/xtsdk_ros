@@ -5,7 +5,7 @@
  ***************************************************************************************/
 
 #include "xtdaemon.h"
-#include "utils.h"
+
 #include "xtlogger.h"
 
 // 命令返回状态码对应字符串
@@ -74,6 +74,8 @@ namespace XinTan
 
         fpscounter = 0;
         fps = 0;
+        imufpscounter = 0;
+        imufps = 0;
         image_version = 100;
 
         callbackhasParam = false;
@@ -81,6 +83,8 @@ namespace XinTan
         eventIn = nullptr;
         imgIn = nullptr;
         xtsdk = nullptr;
+
+        is_playing = false;
 
         set_endianType(Endian_Big); // Endian_Little
     }
@@ -435,6 +439,9 @@ namespace XinTan
     static int checkTxRxCount = 0;
     void XtDaemon::DaemonFunc(XtDaemon *xtdaemon)
     {
+#if defined(__linux__)
+        pthread_setname_np(pthread_self(), "XTDaemonTh");
+#endif    
         while (xtdaemon->bDaemonRuning)
         {
 
@@ -532,6 +539,9 @@ namespace XinTan
 
             xtdaemon->fps = xtdaemon->fpscounter;
             xtdaemon->fpscounter = 0;
+            xtdaemon->imufps = xtdaemon->imufpscounter;
+            xtdaemon->imufpscounter = 0;
+
 
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
@@ -539,6 +549,9 @@ namespace XinTan
 
     void XtDaemon::ReceiveThreadFunc(XtDaemon *xtdaemon)
     {
+    #if defined(__linux__)
+        pthread_setname_np(pthread_self(), "XTReceiveTh");
+#endif
         XByteArray pkgData;
         while (xtdaemon->bDaemonRuning)
         {
@@ -635,6 +648,8 @@ namespace XinTan
 
                             if (cmdid == 153) // is calibration cmd
                                 xtdaemon->isCalibrating = true;
+                            if (cmdid == 252)
+                                xtdaemon->imufpscounter++;
                         }
 
                         if (xtdaemon->sdkState != STATE_CONNECTED)
@@ -828,8 +843,11 @@ namespace XinTan
         frame->frameData.insert(frame->frameData.begin(), payloadlen.begin(), payloadlen.end());
         frame->frameData.insert(frame->frameData.begin(), startmark.begin(), startmark.end());
         frame->frameData.insert(frame->frameData.end(), endmark.begin(), endmark.end());
-
-        rawframeQueue.push(frame);
+        {
+            std::lock_guard<std::mutex> lock(rawframeQueueMutex);
+            rawframeQueue.push(frame);
+        }
+        rawframeQueueCV.notify_one(); // 通知处理线程
         fpscounter++;
 
         return true;
@@ -837,6 +855,10 @@ namespace XinTan
 
     void XtDaemon::UdpReceiveThreadFunc(XtDaemon *xtdaemon)
     {
+    
+#if defined(__linux__)
+        pthread_setname_np(pthread_self(), "XTUdpRecTh");
+#endif
         XByteArray pkgData;
         while (xtdaemon->bDaemonRuning)
         {
@@ -858,6 +880,20 @@ namespace XinTan
                 if (xtdaemon->communctNet->udpReceiveFrame(pkgData))
                 {
                     uint32_t datasize = pkgData.size();
+                    if(pkgData[0] == 252)//imu frame
+                    {
+                        XByteArray imudata;
+                        imudata.assign(pkgData.begin() + 1, pkgData.end() - 3);
+                        std::shared_ptr<CBEventData> eventdata =
+                            std::shared_ptr<CBEventData>(new CBEventData(
+                                "data", pkgData[0], imudata, pkgData[datasize-3]));
+
+                        xtdaemon->eventQueue.push(eventdata);
+
+                        xtdaemon->imufpscounter++;
+
+                        continue;
+                    }
 
                     if (datasize < 1000)
                         continue;
@@ -906,6 +942,9 @@ namespace XinTan
 
     void XtDaemon::EventQueueFunc(XtDaemon *xtdaemon)
     {
+#if defined(__linux__)
+        pthread_setname_np(pthread_self(), "XTEventTh");
+#endif
         while (xtdaemon->bDaemonRuning)
         {
             if ((xtdaemon->eventQueue.empty() == false))
@@ -924,64 +963,129 @@ namespace XinTan
                 }
                 xtdaemon->eventQueue.pop();
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
         }
     }
 
-    void XtDaemon::ImageQueueFunc(XtDaemon *xtdaemon)
-    {
-        while (xtdaemon->bDaemonRuning)
-        {
-            if (xtdaemon->imageQueue.empty() == false)
-            {
-                while (xtdaemon->imageQueue.size() > 1)
-                {
-                    xtdaemon->imageQueue.pop();
-                    XTLOGWRNEXT(xtdaemon->logtagname, "image discard");
-                    std::cout << "image  discard " << std::endl;
-                }
-                if (xtdaemon->imageQueue.empty() == false)
-                {
-                    const std::shared_ptr<Frame> &frame = xtdaemon->imageQueue.front();
+    // void XtDaemon::ImageQueueFunc(XtDaemon *xtdaemon)
+    // {
+    //     while (xtdaemon->bDaemonRuning)
+    //     {
+    //         if (xtdaemon->imageQueue.empty() == false)
+    //         {
+    //             while (xtdaemon->imageQueue.size() > 1)
+    //             {
+    //                 xtdaemon->imageQueue.pop();
+    //                 XTLOGWRNEXT(xtdaemon->logtagname, "image discard");
+    //                 std::cout << "image  discard " << std::endl;
+    //             }
+    //             if (xtdaemon->imageQueue.empty() == false)
+    //             {
+    //                 const std::shared_ptr<Frame> &frame = xtdaemon->imageQueue.front();
 
-                    {
-                        const std::lock_guard<std::mutex> lock(xtdaemon->callbackLock);
-                        if (xtdaemon->sdkState != STATE_TXRX_VERIFYING) // && (xtdaemon->sdkState != STATE_UDPIMGOK))
-                            xtdaemon->ImageCallback(frame);
-                    }
-                    xtdaemon->imageQueue.pop();
-                }
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(30));
-        }
-    }
+    //                 {
+    //                     const std::lock_guard<std::mutex> lock(xtdaemon->callbackLock);
+    //                     if (xtdaemon->sdkState != STATE_TXRX_VERIFYING) // && (xtdaemon->sdkState != STATE_UDPIMGOK))
+    //                         xtdaemon->ImageCallback(frame);
+    //                 }
+    //                 xtdaemon->imageQueue.pop();
+    //             }
+    //         }
+    //         std::this_thread::sleep_for(std::chrono::milliseconds(30));
+    //     }
+    // }
+
+    // void XtDaemon::rawFrameQThreadFunc(XtDaemon *xtdaemon)
+    // {
+    //     while (1)
+    //     {
+    //         if (xtdaemon->rawframeQueue.empty() == false)
+    //         {
+    //             while (xtdaemon->rawframeQueue.size() > 1)
+    //             {
+    //                 xtdaemon->rawframeQueue.pop();
+    //                 XTLOGWRNEXT(xtdaemon->logtagname, "frame discard");
+    //                 std::cout << "frame  discard " << std::endl;
+    //             }
+    //             if (xtdaemon->rawframeQueue.empty() == false)
+    //             {
+    //                 // TicToc tic;
+    //                 const std::shared_ptr<Frame> &frame = xtdaemon->rawframeQueue.front();
+    //                 frame->resetData();
+    //                 frame->sortData(frame->frameData);
+    //                 xtdaemon->reportImage(frame);
+    //                 xtdaemon->rawframeQueue.pop();
+    //                 // std::cout << "whole time: " << tic.toc() << std::endl;
+    //             }
+    //         }
+    //         std::this_thread::sleep_for(std::chrono::milliseconds(30));
+    //     }
+
+    //     xtdaemon->threadrawFrameProcess = nullptr;
+    // }
+
+  void XtDaemon::ImageQueueFunc(XtDaemon *xtdaemon) {
+  
+#if defined(__linux__)
+        pthread_setname_np(pthread_self(), "XTImageTh");
+#endif
+      while (xtdaemon->bDaemonRuning) {
+          std::shared_ptr<Frame> frame;
+          {
+              std::unique_lock<std::mutex> lock(xtdaemon->imageQueueMutex);
+              xtdaemon->imageQueueCV.wait(lock, [xtdaemon] {
+                  return !xtdaemon->imageQueue.empty() || !xtdaemon->bDaemonRuning;
+              });
+              if (!xtdaemon->bDaemonRuning) break;
+              // 确保只保留最新一帧
+              while (xtdaemon->imageQueue.size() > 1) {
+                  xtdaemon->imageQueue.pop();
+                  XTLOGWRNEXT(xtdaemon->logtagname, "image discard");
+              }
+              frame = xtdaemon->imageQueue.front();
+              xtdaemon->imageQueue.pop(); // 立即弹出，防止其他线程干扰
+          } // 自动释放锁
+          // 执行回调
+          {
+              std::lock_guard<std::mutex> cbLock(xtdaemon->callbackLock);
+              // std::cout << "xtdaemon->is_playing: " << xtdaemon->is_playing << std::endl;
+              if (xtdaemon->sdkState != STATE_TXRX_VERIFYING || xtdaemon->is_playing ) {
+                  xtdaemon->ImageCallback(frame);
+              }
+          }
+      }
+  }
 
     void XtDaemon::rawFrameQThreadFunc(XtDaemon *xtdaemon)
     {
-        while (1)
+#if defined(__linux__)
+        pthread_setname_np(pthread_self(), "XTrawFramTh");
+#endif
+        while (xtdaemon->bDaemonRuning)
         {
-            if (xtdaemon->rawframeQueue.empty() == false)
-            {
-                while (xtdaemon->rawframeQueue.size() > 1)
-                {
-                    xtdaemon->rawframeQueue.pop();
-                    XTLOGWRNEXT(xtdaemon->logtagname, "frame discard");
-                    std::cout << "frame  discard " << std::endl;
-                }
-                if (xtdaemon->rawframeQueue.empty() == false)
-                {
-                    // TicToc tic;
-                    const std::shared_ptr<Frame> &frame = xtdaemon->rawframeQueue.front();
-                    frame->resetData();
-                    frame->sortData(frame->frameData);
-                    xtdaemon->reportImage(frame);
-                    xtdaemon->rawframeQueue.pop();
-                    // std::cout << "whole time: " << tic.toc() << std::endl;
-                }
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(30));
-        }
+            std::unique_lock<std::mutex> lock(xtdaemon->rawframeQueueMutex);
+            xtdaemon->rawframeQueueCV.wait(lock, [xtdaemon] {
+                return !xtdaemon->rawframeQueue.empty() || !xtdaemon->bDaemonRuning;
+            });
 
+            if (!xtdaemon->bDaemonRuning) break;
+
+            // 丢弃旧帧，保留最新一帧
+            while (xtdaemon->rawframeQueue.size() > 1) {
+                xtdaemon->rawframeQueue.pop();
+                XTLOGWRNEXT(xtdaemon->logtagname, "frame discard");
+            }
+
+            auto frame = xtdaemon->rawframeQueue.front();
+            lock.unlock(); // 释放队列锁
+
+            frame->resetData();
+            frame->sortData(frame->frameData);
+            xtdaemon->reportImage(frame);
+
+            lock.lock();
+            xtdaemon->rawframeQueue.pop();
+        }
         xtdaemon->threadrawFrameProcess = nullptr;
     }
 
@@ -1032,6 +1136,31 @@ namespace XinTan
         }
     }
 
+    // void XtDaemon::reportImage(const std::shared_ptr<Frame> &frame)
+    // {
+
+    //     if (image_version != frame->frame_version)
+    //     {
+    //         image_version = frame->frame_version;
+    //         XTLOGINFO("imageversion=" + std::to_string(frame->frame_version));
+    //     }
+
+    //     if (UsingImageThread)
+    //     {
+    //         baseFilter->doBaseFilter(frame);
+    //         if (needPointcloud)
+    //         {
+    //             cartesianTransform->pcltransCamparm(frame);
+    //         }
+    //         imageQueue.push(frame);
+    //     }
+    //     else
+    //     {
+    //         const std::lock_guard<std::mutex> lock(callbackLock);
+    //         ImageCallback(frame);
+    //     }
+    // }
+
     void XtDaemon::reportImage(const std::shared_ptr<Frame> &frame)
     {
 
@@ -1048,7 +1177,11 @@ namespace XinTan
             {
                 cartesianTransform->pcltransCamparm(frame);
             }
-            imageQueue.push(frame);
+            {
+                std::lock_guard<std::mutex> lock(imageQueueMutex);
+                imageQueue.push(frame);
+            }
+            imageQueueCV.notify_one(); // 通知处理线程
         }
         else
         {

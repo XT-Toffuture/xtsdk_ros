@@ -39,7 +39,7 @@ struct FrameInfo_t{
     uint8_t  unit_div;//全局的距离单位: 默认50米量程是1mm,     100米量程为2mm，  200米量程为4mm
     uint16_t width;
     uint16_t height;
-    uint16_t temperature[2];//0是sensor温度， 1是灯板温度
+    int16_t temperature[2];//0是sensor温度， 1是灯板温度
     uint8_t  timesync_type;//0 tick, 1 //PPS+GPS , 2 ptp
     uint8_t  timesync_state;//0 丢失， 1: 在线
     uint64_t timestamp[5];//各档位的时间戳

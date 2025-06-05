@@ -66,6 +66,7 @@ namespace XinTan
 
         std::vector<uint8_t> frameData; // 原始数据
         std::vector<uint8_t> leveldata; // 每个像素对应的level
+        std::vector<uint16_t> dcsdata; //每个像素对应的level
 
         std::vector<uint32_t> rawdistData;   // 排序后的距离数据
         std::vector<uint32_t> distData;      // 排序后的距离数据

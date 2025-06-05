@@ -286,7 +286,7 @@ namespace XinTan
     void Frame::sortData(const XByteArray &data) {
         int i, mirrori;
         uint32_t dist_unitmm = 1;
-        int offset, dist_offset, gs16_offset, level_offset;
+        int offset, dist_offset, gs16_offset, level_offset, dcs_offset;
 
         int pixelcount = orgwidth * orgheight;
 
@@ -313,6 +313,7 @@ namespace XinTan
         dist_offset = pixelDataOffset;
         gs16_offset = dist_offset;
         level_offset = dist_offset;
+        dcs_offset = dist_offset;
 
         if (info.imageflags & IMG_DIST)
             wantdatasize += pixelcount*2;
@@ -327,6 +328,11 @@ namespace XinTan
         {
              level_offset = dist_offset + wantdatasize;
              wantdatasize += pixelcount/2;
+        }
+        if (info.imageflags & IMG_DCS)
+        {
+             dcs_offset = dist_offset + wantdatasize;
+             wantdatasize += pixelcount*2*4;
         }
         if (data.size() < (wantdatasize+56) )
         {
@@ -408,6 +414,18 @@ namespace XinTan
                     mirrori = ((i + 1) / orgwidth) * orgwidth + orgwidth - 1 - (i + 1) % orgwidth;
                     leveldata[mirrori] = (data[offset] >> 4) & 0x0F;
                 }
+            }
+        }
+
+        if (info.imageflags & IMG_DCS)
+        {
+            dcsdata.resize(pixelcount*4);
+            int dcssize = pixelcount*4;
+            for (i = 0; i < dcssize; i++)
+            {
+                offset = dcs_offset + i*2;
+
+                dcsdata[i] = data[offset + 1] << 8 | data[offset];
             }
         }
 

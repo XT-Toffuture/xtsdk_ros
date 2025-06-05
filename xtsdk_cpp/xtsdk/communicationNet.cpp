@@ -31,7 +31,7 @@ namespace XinTan {
       isUdpOpened = false;
       for(int i=0; i < 3; i++)
       {
-        data_buffer[i] = XByteArray(320*240*4*2+1024);
+        data_buffer[i] = XByteArray(320*240*8*2+1024);
         data_isUsed[i] = 0;
         data_count[i] = 0;
         data_sn[i] = 0;
@@ -286,7 +286,7 @@ namespace XinTan {
              payloadSize = Utils::getValueUint16Endian(&p[6], endian);
              sentsize = Utils::getValueUint32Endian(&p[8], endian);
 
-             if((payloadSize > 1400) || (sentsize > totalsize) || (totalsize > 700000))
+             if((payloadSize > 1400) || (sentsize > totalsize) || (totalsize > 1200000))
                 return false;
 
              endianType = endian;

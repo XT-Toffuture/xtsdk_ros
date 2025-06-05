@@ -257,7 +257,7 @@ namespace XinTan
         xtdaemon->cartesianTransform->setcutcorner(cutvalue);
     }
 
-    void XtSdk::setPostProcess(const float &dilation_pixels, const uint8_t &mode, const uint8_t &winsize, uint8_t motion_size) {
+    void XtSdk::setPostProcess(const float &dilation_pixels, const uint8_t &mode, uint8_t winsize, uint8_t motion_size) {
         XTDAEMONUSING;
         xtdaemon->baseFilter->setPostParam(dilation_pixels, mode, winsize, motion_size);
     }
@@ -1207,6 +1207,12 @@ namespace XinTan
         return xtdaemon->fps;
     }
 
+    int XtSdk::getimufps()
+    {
+        XTDAEMONUSING;
+        return xtdaemon->imufps;
+    }
+
     bool XtSdk::doUdpFrameData(const std::vector<uint8_t> &udpframeData, std::string frame_label)
     {
         XTDAEMONUSING;
@@ -1231,6 +1237,18 @@ namespace XinTan
         if ((camparams.cx == camparams_last.cx) && (camparams.cy == camparams_last.cy) && (camparams.cx == camparams_last.cx) && (camparams.fx == camparams_last.fx) && (camparams.fy == camparams_last.fy) && (camparams.p1 == camparams_last.p1) && (camparams.p2 == camparams_last.p2) && (camparams.k1 == camparams_last.k1) && (camparams.k2 == camparams_last.k2) && (camparams.k3 == camparams_last.k3))
             return false;
         return true;
+    }
+
+    void XtSdk::setPlayState(bool is_playing)
+    {
+        XTDAEMONUSING;
+        xtdaemon->is_playing = is_playing;
+    }
+
+    bool XtSdk::getPlayState()
+    {
+        XTDAEMONUSING;
+        return xtdaemon->is_playing;
     }
 
     bool XtSdk::doXbinFrameData(const std::string &xbin_path)

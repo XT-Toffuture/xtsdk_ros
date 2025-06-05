@@ -18,6 +18,7 @@
 #include "cartesianTransform.h"
 #include "basefilter.h"
 #include "tic_toc.h"
+#include "utils.h"
 
 namespace XinTan {
 
@@ -81,7 +82,9 @@ public:
 
     int continueNoRespCount;
     int fpscounter;
-    int fps;
+    int fps;    
+    int imufpscounter;
+    int imufps;
     uint16_t udpPort;
     std::string hostIpStr;
 
@@ -89,6 +92,7 @@ public:
     std::atomic<bool> bneedcheckendian;
 
     const std::string *devStateStr;
+    bool is_playing;
 
 private:
 
@@ -160,6 +164,14 @@ private:
     void * imgIn;
     void * xtsdk;
     uint8_t endianType;
+
+    // 对于imageQueue
+    std::mutex imageQueueMutex;
+    std::condition_variable imageQueueCV;
+
+    // 对于rawframeQueue
+    std::mutex rawframeQueueMutex;
+    std::condition_variable rawframeQueueCV;
 };
 
 } //end namespace XinTan

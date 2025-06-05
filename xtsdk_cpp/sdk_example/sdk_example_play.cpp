@@ -31,6 +31,7 @@ std::thread *threadPcl;
 static PCLVisualizer *pcl_viewer = nullptr;
 pcl::PointCloud<pcl::PointXYZI>::Ptr lastcloud = nullptr;
 pcl::PointCloud<pcl::PointXYZI>::Ptr lastcloudview = nullptr;
+std::mutex cloudMutex;
 bool xtpcl_filteron = false;
 bool bHasNewcloud = false;
 std::atomic<bool> keepRunning(true);
@@ -112,6 +113,7 @@ void updatePcl(const std::shared_ptr<Frame> &frame)
     pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>());
     cloud->header.frame_id = "sensor_frame";
     cloud->header.stamp = frame->timeStampS * 1000000 + frame->timeStampNS;
+    // cloud->header.stamp = frame->timeStampS * 1000 +frame->timeStampNS/1000000;
     cloud->width = static_cast<uint32_t>(frame->width);
     cloud->height = static_cast<uint32_t>(frame->height);
     cloud->is_dense = false;
@@ -129,9 +131,11 @@ void updatePcl(const std::shared_ptr<Frame> &frame)
         }
     }
 
-    lastcloud = cloud;
-
-    bHasNewcloud = true;
+    {
+        std::lock_guard<std::mutex> lock(cloudMutex); // 加锁
+        lastcloud = cloud; // 安全更新点云
+        bHasNewcloud = true; // 安全更新标志位
+    }
 }
 
 void PclFunc()
@@ -158,23 +162,24 @@ void PclFunc()
     pcl_viewer->addPointCloud<pcl::PointXYZI>(pcl_pointcloud, "xtlidar");
     pcl_viewer->setPointCloudRenderingProperties(PCL_VISUALIZER_POINT_SIZE, 3.0, "xtlidar");
 
-    while (pclRunning && !pcl_viewer->wasStopped())
-    {
+    while (pclRunning && !pcl_viewer->wasStopped()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        pcl::PointCloud<pcl::PointXYZI>::Ptr local_cloud;
+        bool hasNew = false;
         {
-            if (bHasNewcloud)
-            {
-                lastcloudview = lastcloud;
+            std::lock_guard<std::mutex> lock(cloudMutex);
+            if (bHasNewcloud) {
+                local_cloud = lastcloud;
+                hasNew = true;
                 bHasNewcloud = false;
-                std::string render_type = para_set.lidar_setting_.renderType == 2 ? "intensity" : "z";
-                // PointCloudColorHandlerXt<pcl::PointXYZI> point_color_handle(lastcloudview, "z");
-
-                pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> point_color_handle(lastcloudview, render_type);
-
-                pcl_viewer->updatePointCloud<pcl::PointXYZI>(lastcloudview, point_color_handle, "xtlidar");
             }
-            pcl_viewer->spinOnce();
         }
+        if (hasNew && local_cloud) {
+            std::string render_type = para_set.lidar_setting_.renderType == 2 ? "intensity" : "z";
+            pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> point_color_handle(local_cloud, render_type);
+            pcl_viewer->updatePointCloud<pcl::PointXYZI>(local_cloud, point_color_handle, "xtlidar");
+        }
+        pcl_viewer->spinOnce();
     }
 }
 
@@ -208,7 +213,7 @@ void read_xbin()
         xtsdk->doXbinFrameData(file.second);
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         if(!keepRunning){
-                  return;
+            return;
         }
 
     }
@@ -432,8 +437,8 @@ int main(int argc, char *argv[])
                        {
                            while (keepRunning)
                            {
-                                 std::this_thread::sleep_for(std::chrono::seconds(1));
-                                read_xbin();
+                               std::this_thread::sleep_for(std::chrono::seconds(1));
+                               read_xbin();
 
                            } });
     worker.join();

@@ -20,8 +20,8 @@ namespace XinTan {
         address = "";
         isConnecting = false;
 
-        payloadbuf.resize(1000000);
-        remainbuf.resize(2000000);
+        payloadbuf.resize(1500000);
+        remainbuf.resize(3000000);
   }
 
   CommnunicationUsb::~CommnunicationUsb()
@@ -195,10 +195,10 @@ namespace XinTan {
       if(startmark == 0x7EFFAA55)
       {
           payloadlen = Utils::getValueUint32Endian(&(buf_head[4]),  endianType);
-          if(payloadlen > 700000)
+          if(payloadlen > 1200000)
              payloadlen = ((payloadlen >> 24) & 0xff) |  ((payloadlen >> 8) & 0xff00) |   ((payloadlen << 8) & 0xff0000) |   (payloadlen << 24);
 
-          if((payloadlen > 2) && (payloadlen < 700000))
+          if((payloadlen > 2) && (payloadlen < 1200000))
           {
               //按预测读取到包尾
               try{
