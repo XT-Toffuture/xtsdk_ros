@@ -175,6 +175,8 @@ public:
 
     virtual void doCloudFilter(const std::shared_ptr<IFrame> &frame) = 0;
     virtual void doReflectiveFilter(const std::shared_ptr<IFrame> &frame) = 0;
+
+    virtual void printVersionLib() = 0;
 };
 
 #if defined(_WIN32) || defined(_WIN64)

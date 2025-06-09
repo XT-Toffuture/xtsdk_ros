@@ -92,7 +92,33 @@ namespace XinTan
     XtDaemon::~XtDaemon()
     {
         bDaemonRuning = false;
+
+        {
+            std::lock_guard<std::mutex> lock_img(imageQueueMutex);
+            imageQueueCV.notify_all();
+        }
+        {
+            std::lock_guard<std::mutex> lock_raw(rawframeQueueMutex);
+            rawframeQueueCV.notify_all();
+        }
+
         std::this_thread::sleep_for(std::chrono::seconds(1));
+
+
+        // 4. 清理队列资源（避免内存泄漏）
+        {
+            std::lock_guard<std::mutex> lock_img(imageQueueMutex);
+            while (!imageQueue.empty()) {
+                imageQueue.pop();
+            }
+        }
+
+        {
+            std::lock_guard<std::mutex> lock_raw(rawframeQueueMutex);
+            while (!rawframeQueue.empty()) {
+                rawframeQueue.pop();
+            }
+        }
 
         communctNet->disconnect();
         communctNet->closeUdp();
@@ -103,6 +129,8 @@ namespace XinTan
         delete communctUsb;
         delete cartesianTransform;
         delete baseFilter;
+
+        XTLOGINFO("daemon delete");
     }
 
     void XtDaemon::set_endianType(uint8_t endian)
@@ -259,10 +287,40 @@ namespace XinTan
         XTLOGINFO("");
         bDaemonStarted = false;
 
+
+        {
+            std::lock_guard<std::mutex> lock_img(imageQueueMutex);
+            imageQueueCV.notify_all();
+        }
+        {
+            std::lock_guard<std::mutex> lock_raw(rawframeQueueMutex);
+            rawframeQueueCV.notify_all();
+        }
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+
+
+        // 4. 清理队列资源（避免内存泄漏）
+        {
+            std::lock_guard<std::mutex> lock_img(imageQueueMutex);
+            while (!imageQueue.empty()) {
+                imageQueue.pop();
+            }
+        }
+
+        {
+            std::lock_guard<std::mutex> lock_raw(rawframeQueueMutex);
+            while (!rawframeQueue.empty()) {
+                rawframeQueue.pop();
+            }
+        }
+
         commnunication->disconnect();
         commnunication->closeUdp();
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+
         updateSdkState(STATE_UNSTARTUP);
+        XTLOGINFO("daemon Shutdown completed successfully");
     }
 
     RespResult XtDaemon::transceiveCmd(uint8_t cmdId, XByteArray data,
@@ -1034,7 +1092,7 @@ namespace XinTan
           {
               std::unique_lock<std::mutex> lock(xtdaemon->imageQueueMutex);
               xtdaemon->imageQueueCV.wait(lock, [xtdaemon] {
-                  return !xtdaemon->imageQueue.empty() || !xtdaemon->bDaemonRuning;
+                  return xtdaemon->bDaemonRuning == false || !xtdaemon->imageQueue.empty();
               });
               if (!xtdaemon->bDaemonRuning) break;
               // 确保只保留最新一帧
@@ -1065,7 +1123,7 @@ namespace XinTan
         {
             std::unique_lock<std::mutex> lock(xtdaemon->rawframeQueueMutex);
             xtdaemon->rawframeQueueCV.wait(lock, [xtdaemon] {
-                return !xtdaemon->rawframeQueue.empty() || !xtdaemon->bDaemonRuning;
+                return xtdaemon->bDaemonRuning == false || !xtdaemon->rawframeQueue.empty();
             });
 
             if (!xtdaemon->bDaemonRuning) break;

@@ -13,7 +13,7 @@
 
 using namespace XinTan;
 
-XtSdk *xtsdk;
+XtSdk::Ptr xtsdk;
 std::atomic<bool> keepRunning(true);
 para_example para_set;
 int is_set_config = 0;
@@ -72,10 +72,9 @@ void eventCallback(const std::shared_ptr<CBEventData> &event)
             int fwlen = devinfo.fwVersion.length();
             int vpos = devinfo.fwVersion.find('v');
 
-
-            std::string verfstr = devinfo.fwVersion.substr(vpos+1, fwlen-2);
+            std::string verfstr = devinfo.fwVersion.substr(vpos + 1, fwlen - 2);
             double fwversionf = atof(verfstr.c_str());
-            std::cout << "fw release version=" << fwversionf << "  str=" <<verfstr << std::endl;
+            std::cout << "fw release version=" << fwversionf << "  str=" << verfstr << std::endl;
             if (fwversionf >= 2.20)
             {
                 std::cout << "> 2.20" << std::endl;
@@ -321,7 +320,7 @@ int main(int argc, char *argv[])
         // return -1;
     }
 
-    xtsdk = new XtSdk();
+    xtsdk = std::make_shared<XtSdk>();
 
     std::string addresstring = "";
     if (argc <= 1)
@@ -365,7 +364,8 @@ int main(int argc, char *argv[])
     xtsdk->setCallback(eventCallback, imgCallback);
 
     xtsdk->setCallback(eventCallback, imgCallback);
-    if (para_set.lidar_filter_.reflectiveEnable) {
+    if (para_set.lidar_filter_.reflectiveEnable)
+    {
         xtsdk->setSdkReflectiveFilter(para_set.lidar_filter_.ref_th_min,
                                       para_set.lidar_filter_.ref_th_max);
     }
@@ -391,7 +391,8 @@ int main(int argc, char *argv[])
 
         // xtsdk->setSdkDustFilter(2002, 6);
     }
-    if (para_set.lidar_filter_.postprocessEnable) {
+    if (para_set.lidar_filter_.postprocessEnable)
+    {
         xtsdk->setPostProcess(para_set.lidar_filter_.postprocessThreshold,
                               static_cast<uint8_t>(para_set.lidar_filter_.dynamicsEnabled),
                               para_set.lidar_filter_.dynamicsWinsize,
@@ -412,5 +413,6 @@ int main(int argc, char *argv[])
     xtsdk->stop();
     xtsdk->setCallback();
     xtsdk->shutdown();
+
     return 0;
 }

@@ -9,8 +9,6 @@
 #include <string>
 #include "frame.h"
 
-#define XTSDK_VERSION "V1.10"
-
 namespace XinTan
 {
     // extern void xtdlllogger(const char* pfunction, const char* plogstr);
@@ -209,6 +207,8 @@ namespace XinTan
     class XtSdk
     {
     public:
+        typedef std::shared_ptr<XtSdk> Ptr;
+        typedef std::shared_ptr<const XtSdk> ConstPtr;
         // logpath 可以指定日志路径，logtag 可以指定sdk实例的日志标记，pxt 无需配置
         XtSdk(const std::string logpath = "./xtlog/", const std::string logtag = "", void *pxt = nullptr);
         ~XtSdk();
@@ -323,7 +323,7 @@ namespace XinTan
         std::string logtagname; // sdk内部使用, 请勿使用
         void *pInteranl;        // sdk内部使用, 请勿使用
         static void eventInternalProcess(std::shared_ptr<CBEventData> eventdata, void *psdk);
-
+        void printVersionBanner();
         CamParameterS camparams_playlast;
     };
 

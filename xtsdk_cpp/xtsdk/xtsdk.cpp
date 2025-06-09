@@ -8,6 +8,7 @@
 #include "utils.h"
 #include "xtlogger.h"
 #include "xtdaemon.h"
+#include "version.h"
 #include <fstream>
 #include <algorithm>
 
@@ -108,8 +109,11 @@ struct FrameInfoOld_t
 namespace XinTan
 {
 
+
+
     XtSdk::XtSdk(const std::string logpath, const std::string logtag, void *pxt)
     {
+        printVersionBanner();
         logtagname = logtag;
         init_logger(logpath);
 
@@ -127,6 +131,13 @@ namespace XinTan
         XTDAEMONUSING;
         delete xtdaemon;
         pInteranl = nullptr;
+        XTLOGINFO("sdk delete");
+    }
+
+    void XtSdk::printVersionBanner() {
+        std::cout << "=================================\n";
+        std::cout << "  " << APP_NAME << " " << VERSION_STRING << "\n";
+        std::cout << "=================================\n\n";
     }
 
     /***********  SDK 必要设置 **********************/
@@ -173,6 +184,7 @@ namespace XinTan
     {
         XTDAEMONUSING;
         xtdaemon->shutdown();
+        XTLOGINFO("xtsdk Shutdown completed successfully");
     }
 
     bool XtSdk::isconnect()

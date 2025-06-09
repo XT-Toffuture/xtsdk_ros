@@ -34,7 +34,7 @@ bool xtpcl_filteron = false;
 bool bHasNewcloud = false;
 std::atomic<bool> keepRunning(true);
 std::atomic<bool> pclRunning(true);
-XtSdk *xtsdk;
+XtSdk::Ptr xtsdk;
 para_example para_set;
 int is_set_config = 0;
 void updatePcl(const std::shared_ptr<Frame> &frame);
@@ -93,10 +93,9 @@ void eventCallback(const std::shared_ptr<CBEventData> &event)
             int fwlen = devinfo.fwVersion.length();
             int vpos = devinfo.fwVersion.find('v');
 
-
-            std::string verfstr = devinfo.fwVersion.substr(vpos+1, fwlen-2);
+            std::string verfstr = devinfo.fwVersion.substr(vpos + 1, fwlen - 2);
             double fwversionf = atof(verfstr.c_str());
-            std::cout << "fw release version=" << fwversionf << "  str=" <<verfstr << std::endl;
+            std::cout << "fw release version=" << fwversionf << "  str=" << verfstr << std::endl;
             if (fwversionf >= 2.20)
             {
                 std::cout << "> 2.20" << std::endl;
@@ -240,8 +239,8 @@ void updatePcl(const std::shared_ptr<Frame> &frame)
 
     {
         std::lock_guard<std::mutex> lock(cloudMutex); // 加锁
-        lastcloud = cloud; // 安全更新点云
-        bHasNewcloud = true; // 安全更新标志位
+        lastcloud = cloud;                            // 安全更新点云
+        bHasNewcloud = true;                          // 安全更新标志位
     }
 }
 
@@ -269,19 +268,22 @@ void PclFunc()
     pcl_viewer->addPointCloud<pcl::PointXYZI>(pcl_pointcloud, "xtlidar");
     pcl_viewer->setPointCloudRenderingProperties(PCL_VISUALIZER_POINT_SIZE, 3.0, "xtlidar");
 
-    while (pclRunning && !pcl_viewer->wasStopped()) {
+    while (pclRunning && !pcl_viewer->wasStopped())
+    {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
         pcl::PointCloud<pcl::PointXYZI>::Ptr local_cloud;
         bool hasNew = false;
         {
             std::lock_guard<std::mutex> lock(cloudMutex);
-            if (bHasNewcloud) {
+            if (bHasNewcloud)
+            {
                 local_cloud = lastcloud;
                 hasNew = true;
                 bHasNewcloud = false;
             }
         }
-        if (hasNew && local_cloud) {
+        if (hasNew && local_cloud)
+        {
             std::string render_type = para_set.lidar_setting_.renderType == 2 ? "intensity" : "z";
             pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> point_color_handle(local_cloud, render_type);
             pcl_viewer->updatePointCloud<pcl::PointXYZI>(local_cloud, point_color_handle, "xtlidar");
@@ -437,8 +439,7 @@ int main(int argc, char *argv[])
     std::cout << "Qt FOUND and USING QT" << std::endl;
     QApplication a(argc, argv);
 #endif
-    xtsdk = new XtSdk();
-
+    xtsdk = std::make_shared<XtSdk>();
     std::string addresstring = "";
     if (argc <= 1)
     {
@@ -484,7 +485,8 @@ int main(int argc, char *argv[])
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     xtsdk->setCallback(eventCallback, imgCallback);
-    if (para_set.lidar_filter_.reflectiveEnable) {
+    if (para_set.lidar_filter_.reflectiveEnable)
+    {
         xtsdk->setSdkReflectiveFilter(para_set.lidar_filter_.ref_th_min,
                                       para_set.lidar_filter_.ref_th_max);
     }
@@ -510,7 +512,8 @@ int main(int argc, char *argv[])
 
         // xtsdk->setSdkDustFilter(2002, 6);
     }
-    if (para_set.lidar_filter_.postprocessEnable) {
+    if (para_set.lidar_filter_.postprocessEnable)
+    {
         xtsdk->setPostProcess(para_set.lidar_filter_.postprocessThreshold,
                               static_cast<uint8_t>(para_set.lidar_filter_.dynamicsEnabled),
                               para_set.lidar_filter_.dynamicsWinsize,
@@ -526,7 +529,8 @@ int main(int argc, char *argv[])
                                std::this_thread::sleep_for(std::chrono::seconds(1));
                            } });
     worker.join();
-    if (threadPcl) {
+    if (threadPcl)
+    {
         threadPcl->join(); // 等待PCL线程结束
         delete threadPcl;
         threadPcl = nullptr;

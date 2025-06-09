@@ -58,6 +58,11 @@ namespace XinTan
         }
         bLibLoadSuccess = true;
         filter = createBaseFilter(xtdlllogger);
+
+        if(bLibLoadSuccess)
+        {
+            filter->printVersionLib();
+        }
     }
 
     LibHandler::~LibHandler()

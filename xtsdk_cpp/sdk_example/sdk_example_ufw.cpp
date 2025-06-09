@@ -17,7 +17,7 @@
 
 using namespace XinTan;
 
-XtSdk *xtsdk;
+XtSdk::Ptr xtsdk;
 std::atomic<bool> keepRunning(true);
 para_example para_set;
 int is_set_config = 1;
@@ -145,10 +145,9 @@ void eventCallback(const std::shared_ptr<CBEventData> &event)
             int fwlen = devinfo.fwVersion.length();
             int vpos = devinfo.fwVersion.find('v');
 
-
-            std::string verfstr = devinfo.fwVersion.substr(vpos+1, fwlen-2);
+            std::string verfstr = devinfo.fwVersion.substr(vpos + 1, fwlen - 2);
             double fwversionf = atof(verfstr.c_str());
-            std::cout << "fw release version=" << fwversionf << "  str=" <<verfstr << std::endl;
+            std::cout << "fw release version=" << fwversionf << "  str=" << verfstr << std::endl;
         }
         std::cout << "sdkstate= " + xtsdk->getStateStr() << std::endl;
     }
@@ -258,7 +257,7 @@ void checkConnection(const std::string &usbport)
 #endif
 int main(int argc, char *argv[])
 {
-    xtsdk = new XtSdk();
+    xtsdk = std::make_shared<XtSdk>();
 
     std::string addresstring = "";
     if (argc <= 2)

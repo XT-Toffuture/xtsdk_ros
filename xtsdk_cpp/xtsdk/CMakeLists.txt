@@ -1,6 +1,11 @@
 ﻿cmake_minimum_required(VERSION 3.5)
 
-project(xtsdk VERSION 0.1 LANGUAGES CXX)
+project(xtsdk VERSION 2.1.4 LANGUAGES CXX)
+string(TIMESTAMP BUILD_DATE "%Y-%m-%d %H:%M:%S")
+
+
+
+# 配置版本头文件
 
 set(CMAKE_BUILD_TYPE Release)
 
@@ -40,9 +45,14 @@ if(OpenMP_FOUND)
 else(OpenMP_FOUND)
     message(FATAL_ERROR "openmp not found!")
 endif(OpenMP_FOUND)
-
+configure_file(
+    version.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/version.h
+    @ONLY
+)
 
 add_library(xtsdk STATIC
+    ${CMAKE_CURRENT_BINARY_DIR}/version.h
     xtsdk.h
     xtsdk.cpp
     xtdaemon.cpp
@@ -57,7 +67,9 @@ add_library(xtsdk STATIC
     xtpcl_filter.cpp
 )
 
+message(STATUS "__________CMAKE_CURRENT_BINARY_DIR: ${CMAKE_CURRENT_BINARY_DIR}_________")
 
+message(STATUS "__________SDK Version: ${PROJECT_VERSION}_________")
 
 # add_definitions(-DPROJECT_DIR="${CMAKE_SOURCE_DIR}")
 if(NOT DEFINED PROJECT_DIR)
@@ -71,11 +83,15 @@ endif()
 
 add_definitions(-DPROJECT_DIR="${PROJECT_DIR}")
 
+
+
 if(WIN32)
-	target_include_directories(xtsdk PUBLIC ${Boost_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS})
+    target_include_directories(xtsdk PUBLIC ${Boost_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS})
     target_link_libraries(xtsdk PRIVATE ${OpenCV_LIBS} ${PCL_LIBRARIES})
 
 else()
+
+
         target_include_directories(xtsdk PUBLIC ${Boost_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
     # Detect architecture
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")

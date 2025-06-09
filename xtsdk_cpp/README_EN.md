@@ -217,6 +217,9 @@ Retrieves the SDK state as a string.
 
 Retrieves the calculated frame rate of the SDK.
 
+- bool setSdkReflectiveFilter(const float &threshold_min, const float &threshold_max);
+Sets the Reflective Filter in the SDK.
+
 - bool setSdkKalmanFilter(uint16_t factor, uint16_t threshold);
 
 Sets the Kalman filter in the SDK.
@@ -229,7 +232,7 @@ Sets the outlier filter in the SDK.
 
 Sets the median filter in the SDK.
 
-- void setPostProcess(const float &dilation_pixels, const uint8_t &mode, const double &mode_th);
+- void setPostProcess(const float &dilation_pixels, const uint8_t &mode);
 
 Sets near-range point cloud optimization and moving object optimization.
 
@@ -254,7 +257,7 @@ Sets the coordinate system for outputting point clouds in the SDK.
 
 ​  Stops the device measurement.
 
-bool getDevInfo(RespDevInfo & devInfo);
+- bool getDevInfo(RespDevInfo & devInfo);
 
 ​  Retrieves device information; see the data structure definition in xtsdk.h.
 

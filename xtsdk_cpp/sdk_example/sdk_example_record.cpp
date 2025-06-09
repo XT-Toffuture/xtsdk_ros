@@ -17,7 +17,7 @@
 using namespace XinTan;
 namespace fs = boost::filesystem;
 
-XtSdk *xtsdk;
+XtSdk::Ptr xtsdk;
 std::atomic<bool> keepRunning(true);
 para_example para_set;
 int is_set_config = 0;
@@ -81,10 +81,9 @@ void eventCallback(const std::shared_ptr<CBEventData> &event)
             int fwlen = devinfo.fwVersion.length();
             int vpos = devinfo.fwVersion.find('v');
 
-
-            std::string verfstr = devinfo.fwVersion.substr(vpos+1, fwlen-2);
+            std::string verfstr = devinfo.fwVersion.substr(vpos + 1, fwlen - 2);
             double fwversionf = atof(verfstr.c_str());
-            std::cout << "fw release version=" << fwversionf << "  str=" <<verfstr << std::endl;
+            std::cout << "fw release version=" << fwversionf << "  str=" << verfstr << std::endl;
             if (fwversionf >= 2.20)
             {
                 std::cout << "> 2.20" << std::endl;
@@ -376,7 +375,7 @@ int main(int argc, char *argv[])
         // return -1;
     }
 
-    xtsdk = new XtSdk();
+    xtsdk = std::make_shared<XtSdk>();
 
     std::string addresstring = "";
 

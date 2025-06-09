@@ -223,6 +223,8 @@ void setCallback(std::function<void(const std::shared_ptr\<CBEventData> &) >  ev
 
 - int getfps();  
     获取SDK计算的帧率
+- bool setSdkReflectiveFilter(const float &threshold_min, const float &threshold_max);
+  设置sdk中的反射率滤波    
 
 - bool setSdkKalmanFilter(uint16_t factor, uint16_t threshold);  
   设置sdk中的卡尔曼滤波
@@ -233,7 +235,7 @@ void setCallback(std::function<void(const std::shared_ptr\<CBEventData> &) >  ev
 - bool setSdkMedianFilter(uint16_t size);  
     设置sdk中的中值滤波
 
-- void setPostProcess(const float &dilation_pixels, const uint8_t &mode, const double &mode_th);
+- void setPostProcess(const float &dilation_pixels, const uint8_t &mode);
    设置近距离点云优化以及移动物体优化
 
 - bool clearAllSdkFilter();  
