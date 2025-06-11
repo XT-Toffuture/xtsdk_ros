@@ -53,6 +53,14 @@ const std::array<float, 7> refcof_S240PRO ={0.027421f, //FREQ_12M
                                              0.0198f, //FREQ_0_75M
                                              0.024667f}; //FREQ_4_8M
 
+const std::array<float, 7> refcof_M240 ={0.008084f, //FREQ_12M
+                                             0.006265f, //FREQ_6M
+                                             0.010401f, //FREQ_24M
+                                             0.006837f, //FREQ_3M
+                                             0.005828f, //FREQ_1_5M
+                                             0.00795f, //FREQ_0_75M
+                                             0.005828f}; //FREQ_4_8M
+
 const std::array<float, 7> refcof_M240MIN ={0.008084f * 2.0f, //FREQ_12M
                                              0.006265f * 2.0f, //FREQ_6M
                                              0.010401f * 2.0f, //FREQ_24M

@@ -278,6 +278,10 @@ namespace XinTan
             m_refcof = refcof_M240ULTRA;
         else if((int)sn_str_without_nulls.find("M60") > 0)
             m_refcof = refcof_M60;
+        else if((int)sn_str_without_nulls.find("Z240") > 0)
+            m_refcof = refcof_M240;
+        else if((int)sn_str_without_nulls.find("M240") > 0)
+            m_refcof = refcof_M240;
         else
             m_refcof = refcof_S240MINI;
     }
@@ -428,6 +432,11 @@ namespace XinTan
                 dcsdata[i] = data[offset + 1] << 8 | data[offset];
             }
         }
+
+        if(info.binning & 0x01)
+            binning_div *= 2;
+        if(info.binning & 0x02)
+            binning_div *= 2;
 
         //下采样处理
         if (needxiacaiyang) {

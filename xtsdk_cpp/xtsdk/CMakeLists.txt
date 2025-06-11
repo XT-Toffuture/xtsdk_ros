@@ -1,6 +1,6 @@
 ﻿cmake_minimum_required(VERSION 3.5)
 
-project(xtsdk VERSION 2.1.4 LANGUAGES CXX)
+project(xtsdk VERSION 2.1.5 LANGUAGES CXX)
 string(TIMESTAMP BUILD_DATE "%Y-%m-%d %H:%M:%S")
 
 
