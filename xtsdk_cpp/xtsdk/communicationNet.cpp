@@ -256,7 +256,6 @@ namespace XinTan {
            {
                std::cout << "udp error" << len << std::endl;
                XTLOGWRN("udp error");
-
                return false;
            }
            if(udppacket(udpRecvBuffer, pkgData))
@@ -290,6 +289,24 @@ namespace XinTan {
                 return false;
 
              endianType = endian;
+         }else if(payloadSize < 200)
+         {
+             if(p[UDP_HEADER_OFFSET+8] == 252)
+             {
+                 uint32_t startmark = Utils::getValueUint32Endian(&p[UDP_HEADER_OFFSET], Endian_Big);
+                 uint32_t endmark = Utils::getValueUint32Endian(&p[UDP_HEADER_OFFSET+payloadSize-4], Endian_Big);
+
+                 if((startmark == 0x7EFFAA55) && (endmark == 0xFF7E55AA))
+                 {
+                     pkgData.assign(p.begin()+UDP_HEADER_OFFSET+8, p.begin() +UDP_HEADER_OFFSET+ payloadSize-4);
+
+                     return true;
+                 }else
+                 {
+                     std::cout << "imu frame start " << std::hex << startmark << std::endl;
+                     std::cout << "imu frame end " << std::hex << endmark << std::endl;
+                 }
+             }
          }
 
          uint32_t bufIndex = 10;

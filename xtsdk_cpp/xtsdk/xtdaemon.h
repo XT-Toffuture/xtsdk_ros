@@ -90,6 +90,7 @@ public:
 
     int cmd0_checkcount;
     std::atomic<bool> bneedcheckendian;
+    bool checkendian_enable;
 
     const std::string *devStateStr;
     bool is_playing;
@@ -168,6 +169,8 @@ private:
     // 对于imageQueue
     std::mutex imageQueueMutex;
     std::condition_variable imageQueueCV;
+    std::mutex eventQueueMutex;
+    std::condition_variable eventQueueCV;
 
     // 对于rawframeQueue
     std::mutex rawframeQueueMutex;

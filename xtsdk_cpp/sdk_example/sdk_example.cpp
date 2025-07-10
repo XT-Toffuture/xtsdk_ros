@@ -17,7 +17,9 @@ XtSdk::Ptr xtsdk;
 std::atomic<bool> keepRunning(true);
 para_example para_set;
 int is_set_config = 0;
-
+uint8_t is_connected = 0;
+ExtrinsicIMULidar e_imu_lidar;
+uint8_t imucount = 0;
 int getMultiFreq(const int &freq_dev)
 {
     int index = 0;
@@ -51,7 +53,6 @@ int getMultiFreq(const int &freq_dev)
 }
 void eventCallback(const std::shared_ptr<CBEventData> &event)
 {
-    std::cout << "event: " + event->eventstr + " " + std::to_string(event->cmdid) << std::endl;
 
     if (event->eventstr == "sdkState")
     {
@@ -131,15 +132,11 @@ void eventCallback(const std::shared_ptr<CBEventData> &event)
                                            (ModulationFreq)para_set.lidar_setting_.freq2,
                                            (ModulationFreq)para_set.lidar_setting_.freq3,
                                            (ModulationFreq)para_set.lidar_setting_.freq4);
-                    xtsdk->setCutCorner(para_set.lidar_setting_.cut_corner);
                     xtsdk->start((ImageType)para_set.lidar_setting_.imgType);
                 }
                 else
                 {
-                    xtsdk->setCutCorner(para_set.lidar_setting_.cut_corner);
                     xtsdk->start((ImageType)para_set.lidar_setting_.imgType);
-                    // xtsdk->start((ImageType)devconfig.imgType);
-                    return;
                 }
             }
             else
@@ -156,26 +153,67 @@ void eventCallback(const std::shared_ptr<CBEventData> &event)
                                        (ModulationFreq)para_set.lidar_setting_.freq2,
                                        (ModulationFreq)para_set.lidar_setting_.freq3,
                                        (ModulationFreq)para_set.lidar_setting_.freq4);
+
                 xtsdk->setCutCorner(para_set.lidar_setting_.cut_corner);
                 xtsdk->start((ImageType)para_set.lidar_setting_.imgType);
                 std::cout << "********************************************************" << std::endl;
             }
+            xtsdk->setBinningV(0); // 0为不设定binningv 1为设定binningv
+            // xtsdk->setTransMirror(1, 1);//如果雷达绕深度方向旋180度安装，需设定此函数，保证点云方向正确
+            xtsdk->setCutCorner(para_set.lidar_setting_.cut_corner);
+            xtsdk->getImuExtParamters(e_imu_lidar, 1); // 获取imu to lidar外参 0为获取默认外参，1为获取标定外参，
+                                                       // 如果需要setTransMirr需要设定 必须在设定之后 获取外参
+            is_connected += 1;
+            is_connected = is_connected > 10 ? 10 : is_connected;
         }
-        std::cout << "sdkstate= " + xtsdk->getStateStr() << std::endl;
     }
     else if (event->eventstr == "devState")
     {
-        std::cout << "devstate= " + xtsdk->getStateStr() << std::endl;
     }
     else
     {
-        if (event->cmdid == XinTan::REPORT_LOG) // log
+        if (event->cmdid == 252)
         {
-            std::string logdata;
-            logdata.assign(event->data.begin(), event->data.end());
-            std::cout << "log: " << logdata << std::endl;
+            if (is_connected == 0)
+            {
+                return;
+            }
+            // if (imucount > 10)
+            // {
+            // imucount = 0;
+            FrameOutImu_t *pimu = (FrameOutImu_t *)(event->data.data());
+            float imutemp = *(float *)&pimu->data[9];
+            float imuaccx = *(float *)&pimu->data[0];
+            float imuaccy = *(float *)&pimu->data[1];
+            float imuaccz = *(float *)&pimu->data[2];
+            float imugx = *(float *)&pimu->data[3];
+            float imugy = *(float *)&pimu->data[4];
+            float imugz = *(float *)&pimu->data[5];
+            uint64_t imutimestamp = *(uint64_t *)&pimu->data[10];
+            uint32_t times = 0;
+            uint32_t timems = 0;
+            if (imutimestamp > 100000000000) // ptp同步时
+            {
+                times = ((imutimestamp / 1000 - 37) % 60);
+                timems = imutimestamp % 1000;
+            }
+            else
+            {
+                times = imutimestamp / 1000;
+                timems = imutimestamp % 1000;
+            }
+            imucount++;
+            // }
+
+            if (imucount > 10)
+            {
+                std::cout << "linear_acceleration: " << imuaccx << " " << imuaccy << " " << imuaccz << std::endl;
+
+                // std::cout << times << std::endl;
+                // std::cout << timems << std::endl;
+                imucount = 0;
+            }
         }
-        std::cout << "event: " + event->eventstr + " cmd=" << std::to_string(event->cmdid) << std::endl;
     }
 }
 

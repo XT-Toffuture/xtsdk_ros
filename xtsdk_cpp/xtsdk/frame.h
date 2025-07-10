@@ -56,17 +56,21 @@ namespace XinTan
 
         bool hasPointcloud; // 是否有点云数据
 
-        std::array<float, 7> m_refcof = {0.0,  // FREQ_12M
-                                         0.0,  // FREQ_6M
-                                         0.0,  // FREQ_24M
-                                         0.0,  // FREQ_3M
-                                         0.0,  // FREQ_1_5M
-                                         0.0,  // FREQ_0_75M
-                                         0.0}; // FREQ_4_8M
+        std::array<float, 7> m_refcof;
+
+        std::unordered_map<uint8_t, uint8_t> devsdk_feq_map;
+        std::array<float, 7> refcof_S240MINI;
+        std::array<float, 7> refcof_S240PRO;
+        std::array<float, 7> refcof_M240;
+        std::array<float, 7> refcof_M240MINI;
+        std::array<float, 7> refcof_M240PRO;
+        std::array<float, 7> refcof_M240MAX;
+        std::array<float, 7> refcof_M240ULTRA;
+        std::array<float, 7> refcof_M60;
 
         std::vector<uint8_t> frameData; // 原始数据
         std::vector<uint8_t> leveldata; // 每个像素对应的level
-        std::vector<uint16_t> dcsdata; //每个像素对应的level
+        std::vector<uint16_t> dcsdata;  // 每个像素对应的level
 
         std::vector<uint32_t> rawdistData;   // 排序后的距离数据
         std::vector<uint32_t> distData;      // 排序后的距离数据
@@ -87,6 +91,7 @@ namespace XinTan
         void resetData();
         void setCofArray();
 
+        const uint8_t getImageFlags();
         const int getDistDataSize();
         const uint32_t getDistData(const size_t &index);
         const uint16_t getAmplData(const size_t &index);

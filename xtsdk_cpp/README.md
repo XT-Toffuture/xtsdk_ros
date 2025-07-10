@@ -315,3 +315,10 @@ void setCallback(std::function<void(const std::shared_ptr\<CBEventData> &) >  ev
 
 - bool setMultiModFreq(ModulationFreq freqType1, ModulationFreq freqType2, ModulationFreq freqType3, ModulationFreq freqType4 = FREQ_24M); 
   设置三档积分时间对应频率
+
+- bool setBinningV(uint8_t flag);
+  0为不设定binningv 1为设定binningv
+
+- bool getImuExtParamters(ExtrinsicIMULidar &imuparameters, uint8_t flag = 1);
+  获取imu to lidar外参 0为获取默认外参，1为获取标定外参，
+  如果需要setTransMirr需要设定 必须在设定之后 获取外参

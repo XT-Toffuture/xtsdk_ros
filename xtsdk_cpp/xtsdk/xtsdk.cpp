@@ -67,6 +67,7 @@ const std::string devStateStr[] = {
     "ErrNoSnCfg",
     "ErrTempParamters",
     "Calibrating",
+    "ErrNoImuParamters",
     "ErrUnknowMax"};
 
 #define XTDAEMONUSING XtDaemon *xtdaemon = (XtDaemon *)pInteranl
@@ -109,8 +110,6 @@ struct FrameInfoOld_t
 namespace XinTan
 {
 
-
-
     XtSdk::XtSdk(const std::string logpath, const std::string logtag, void *pxt)
     {
         printVersionBanner();
@@ -134,7 +133,8 @@ namespace XinTan
         XTLOGINFO("sdk delete");
     }
 
-    void XtSdk::printVersionBanner() {
+    void XtSdk::printVersionBanner()
+    {
         std::cout << "=================================\n";
         std::cout << "  " << APP_NAME << " " << VERSION_STRING << "\n";
         std::cout << "=================================\n\n";
@@ -212,7 +212,7 @@ namespace XinTan
     {
         XTDAEMONUSING;
         std::string statestr = sdkStateStr[xtdaemon->sdkState];
-        if(xtdaemon->devState < DevSTATE_ERR_MAX)
+        if (xtdaemon->devState < DevSTATE_ERR_MAX)
             statestr.append("-" + devStateStr[xtdaemon->devState]);
         else
             statestr.append("-Unknow:" + std::to_string(xtdaemon->devState));
@@ -231,6 +231,37 @@ namespace XinTan
                 memcpy(&camparameter, respData.data(), sizeof(camparameter));
                 return true;
             }
+        }
+        return false;
+    }
+
+    bool XtSdk::getImuExtParamters(ExtrinsicIMULidar &imuparameters, uint8_t flag)
+    {
+        XTDAEMONUSING;
+
+        if (flag == 0)
+        {
+            imuparameters = xtdaemon->cartesianTransform->getCurrentImuExtParamters();
+            return true;
+        }
+        XByteArray data = {};
+
+        XByteArray respData;
+        if (customCmd(29, data, respData))
+        {
+            if (respData.size() == sizeof(imuparameters))
+            {
+                ExtrinsicIMULidar ext_tmp;
+                memcpy(&ext_tmp, respData.data(), sizeof(imuparameters));
+                xtdaemon->cartesianTransform->updateImuExtParamters(ext_tmp);
+                imuparameters = xtdaemon->cartesianTransform->getCurrentImuExtParamters();
+                return true;
+            }
+        }
+        else
+        {
+            imuparameters = xtdaemon->cartesianTransform->getCurrentImuExtParamters();
+            return true;
         }
         return false;
     }
@@ -269,7 +300,8 @@ namespace XinTan
         xtdaemon->cartesianTransform->setcutcorner(cutvalue);
     }
 
-    void XtSdk::setPostProcess(const float &dilation_pixels, const uint8_t &mode, uint8_t winsize, uint8_t motion_size) {
+    void XtSdk::setPostProcess(const float &dilation_pixels, const uint8_t &mode, uint8_t winsize, uint8_t motion_size)
+    {
         XTDAEMONUSING;
         xtdaemon->baseFilter->setPostParam(dilation_pixels, mode, winsize, motion_size);
     }
@@ -402,61 +434,64 @@ namespace XinTan
 
         std::ifstream file(bin_path, std::ios::binary | std::ios::ate);
 
-         uint32_t filetype = 0;
-        if (!file.is_open()) {
-             std::cout << "Failed to open file: " << bin_path << std::endl;
-             return false;
-         }
+        uint32_t filetype = 0;
+        if (!file.is_open())
+        {
+            std::cout << "Failed to open file: " << bin_path << std::endl;
+            return false;
+        }
         // 获取文件大小
         std::streamsize filesize = file.tellg();
         file.seekg(0, std::ios::beg);
 
         // 分配缓冲区
-        char* pBuff = new char[filesize];
+        char *pBuff = new char[filesize];
 
         // 读取文件数据
-        if (file.read(pBuff, filesize)) {
+        if (file.read(pBuff, filesize))
+        {
             // 等待 1 秒（如果需要）
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
             // 从缓冲区读取文件类型
-            uint8_t* pfiledata = reinterpret_cast<uint8_t*>(pBuff);
+            uint8_t *pfiledata = reinterpret_cast<uint8_t *>(pBuff);
             filetype = (pfiledata[3] << 24) | (pfiledata[2] << 16) | (pfiledata[1] << 8) | pfiledata[0];
 
             std::cout << "Filetype: " << std::hex << filetype << std::endl;
-        } else {
+        }
+        else
+        {
             // 释放缓冲区
             delete[] pBuff;
             std::cout << "Failed to read the file: " << bin_path << std::endl;
             return false;
         }
 
-
         file.close();
 
-        if(filetype == 710111)
+        if (filetype == 710111)
         {
-
-        }else
+        }
+        else
         {
             XByteArray respData;
             customCmd(48, {}, respData);
 
-            int count =0;
-            while(count < 30)
+            int count = 0;
+            while (count < 30)
             {
-                count ++;
+                count++;
 
                 std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
                 uint8_t devstate = getDevState();
                 std::cout << "current devstate " << devstate << std::endl;
-                if((devstate == 0x0D) || (devstate == 0x0E))//bootnoapp or boot
+                if ((devstate == 0x0D) || (devstate == 0x0E)) // bootnoapp or boot
                 {
                     break;
                 }
             }
-            if(count > 28)
+            if (count > 28)
             {
                 delete[] pBuff;
                 std::cout << "Failed to enter bootloader" << std::endl;
@@ -466,16 +501,16 @@ namespace XinTan
 
         uint8_t bufferSend[2000];
 
-        //发送尺寸
+        // 发送尺寸
         bufferSend[0] = 0x01;
-        Utils::setValueUint32Endian(bufferSend+1, filesize, getEndianType());
+        Utils::setValueUint32Endian(bufferSend + 1, filesize, getEndianType());
 
         XByteArray data;
 
         data.assign(bufferSend, bufferSend + 5);
 
         XByteArray respData;
-        if(customCmd(49, data, respData, 4000)==false)
+        if (customCmd(49, data, respData, 4000) == false)
         {
 
             std::cout << "Failed to writ fw data" << std::endl;
@@ -484,51 +519,49 @@ namespace XinTan
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
 
-
-        uint8_t * pdata = (uint8_t *)pBuff;
+        uint8_t *pdata = (uint8_t *)pBuff;
         int oncecount = 0;
 
         uint16_t sn = 0;
-        int pkgcount = filesize/1024;
-        if(filesize % 1024)
-            pkgcount ++;
+        int pkgcount = filesize / 1024;
+        if (filesize % 1024)
+            pkgcount++;
 
-
-        //发送数据
-        for(int i =0; i< filesize; )
+        // 发送数据
+        for (int i = 0; i < filesize;)
         {
             oncecount = 1024;
-            if((i+1024) > filesize)
+            if ((i + 1024) > filesize)
                 oncecount = filesize - i;
 
             bufferSend[0] = 0x02;
-            bufferSend[1] = (sn>>8) & 0x00FF;
-            bufferSend[2] =  sn & 0x00FF;
-            memcpy(bufferSend+3,pdata,oncecount);
-
+            bufferSend[1] = (sn >> 8) & 0x00FF;
+            bufferSend[2] = sn & 0x00FF;
+            memcpy(bufferSend + 3, pdata, oncecount);
 
             XByteArray data2;
 
             data2.assign(bufferSend, bufferSend + oncecount + 3);
 
             XByteArray respData2;
-            if(customCmd(49, data2, respData2, 4000))
+            if (customCmd(49, data2, respData2, 4000))
             {
-                pdata +=1024;
-            }else
+                pdata += 1024;
+            }
+            else
             {
                 std::cout << "write calidata failed" << std::to_string(sn) << std::endl;
                 break;
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(2));
 
-            sn ++;
-            i+=oncecount;
+            sn++;
+            i += oncecount;
             float percentage = (static_cast<float>(sn) / pkgcount) * 100;
             std::cout << "Progress: " << percentage << "%" << std::endl;
         }
 
-        //发送CRC 结束
+        // 发送CRC 结束
         bufferSend[0] = 0x03;
 
         XByteArray data1;
@@ -538,11 +571,11 @@ namespace XinTan
         XByteArray respData1;
         customCmd(49, data1, respData1, 4000);
 
-
-        if(sn == pkgcount)
+        if (sn == pkgcount)
         {
             std::cout << "fwupdata: Write ok " << std::endl;
-        }else
+        }
+        else
         {
             std::cout << "fwupdata: Write failed " << std::to_string(sn) + " " + std::to_string(pkgcount) << std::endl;
         }
@@ -564,7 +597,7 @@ namespace XinTan
         }
 
         // std::cout << respResult.data.size() << " info  " << sizeof(struct
-        // DevInfo_t) << std::endl;        
+        // DevInfo_t) << std::endl;
         devInfo.bdrnulens = 0;
 
         if (respResult.data.size() == sizeof(struct DevInfo_t))
@@ -591,7 +624,7 @@ namespace XinTan
             devInfo.udpDestPort = rawdevinfo.udpDestPort;
             devInfo.timeSyncType = rawdevinfo.timesync_type;
 
-            if((rawdevinfo.otherflags & 0x01) && ((rawdevinfo.otherflags & (0x01<< 4)) > 0))
+            if ((rawdevinfo.otherflags & 0x01) && ((rawdevinfo.otherflags & (0x01 << 4)) > 0))
                 devInfo.bdrnulens = 1;
 
             return true;
@@ -1242,8 +1275,6 @@ namespace XinTan
         return logtagname;
     }
 
-
-
     bool camparamsChanged(CamParameterS &camparams, CamParameterS &camparams_last)
     {
         if ((camparams.cx == camparams_last.cx) && (camparams.cy == camparams_last.cy) && (camparams.cx == camparams_last.cx) && (camparams.fx == camparams_last.fx) && (camparams.fy == camparams_last.fy) && (camparams.p1 == camparams_last.p1) && (camparams.p2 == camparams_last.p2) && (camparams.k1 == camparams_last.k1) && (camparams.k2 == camparams_last.k2) && (camparams.k3 == camparams_last.k3))
@@ -1261,6 +1292,16 @@ namespace XinTan
     {
         XTDAEMONUSING;
         return xtdaemon->is_playing;
+    }
+
+    bool XtSdk::setBinningV(uint8_t flag)
+    {
+        XByteArray data = {flag};
+        XByteArray respData;
+        if (customCmd(12, data, respData))
+            return true;
+        else
+            return false;
     }
 
     bool XtSdk::doXbinFrameData(const std::string &xbin_path)
@@ -1379,7 +1420,8 @@ namespace XinTan
     }
 
     bool XtSdk::doXbinRecord(const std::string &xbin_path, const std::shared_ptr<Frame> &frame,
-                             const uint32_t &currIndex) {
+                             const uint32_t &currIndex)
+    {
         // uint8_t i = 0;
         // CamParameterS g_camparams;
         // if (currIndex == 0) {
@@ -1401,7 +1443,8 @@ namespace XinTan
 
         // 打开文件
         std::ofstream file(filename, std::ios::binary);
-        if (!file.is_open()) {
+        if (!file.is_open())
+        {
             std::cout << "Failed to open file for writing." << std::endl;
             return false;
         }
@@ -1410,10 +1453,13 @@ namespace XinTan
         int datasize = frame->frameData.size();
         int framestartpos = 0;
 
-        if (frame->frame_version > 2) { // V3 版本不存配置信息
+        if (frame->frame_version > 2)
+        { // V3 版本不存配置信息
             xbinVer = 3;
             file.write(reinterpret_cast<const char *>(&xbinVer), sizeof(xbinVer));
-        } else {
+        }
+        else
+        {
             // file.write(reinterpret_cast<const char *>(&xbinVer), sizeof(xbinVer));
             // file.write(reinterpret_cast<const char *>(&g_camparams), sizeof(g_camparams));
             // file.write(reinterpret_cast<const char *>(&g_recordCfgInfo),
@@ -1428,7 +1474,8 @@ namespace XinTan
         }
 
         // 写入数据
-        for (int i = framestartpos; i < datasize; ++i) {
+        for (int i = framestartpos; i < datasize; ++i)
+        {
             file.put(frame->frameData[i]);
         }
 
@@ -1461,9 +1508,9 @@ namespace XinTan
 
             if (fwlen > 8)
             {
-                std::string verfstr = devinfo.fwVersion.substr(vpos+1, fwlen-2);
+                std::string verfstr = devinfo.fwVersion.substr(vpos + 1, fwlen - 2);
                 double fwversionf = atof(verfstr.c_str());
-                std::cout << "fw release version=" << fwversionf << "  str=" <<verfstr << std::endl; //Major
+                std::cout << "fw release version=" << fwversionf << "  str=" << verfstr << std::endl; // Major
             }
 
             CamParameterS camparams;

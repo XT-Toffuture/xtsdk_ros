@@ -5,13 +5,19 @@
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/PointCloud.h>
 #include <sensor_msgs/SetCameraInfo.h>
+#include <sensor_msgs/Imu.h>
+#include <livox_ros_driver/CustomMsg.h>
+#include <livox_ros_driver/CustomPoint.h>
 #include <dynamic_reconfigure/server.h>
 #include <pcl_ros/point_cloud.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <pcl/filters/filter.h>
 #include <iostream>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/ini_parser.hpp>
 #include <xtsdk_ros/xtsdk_ros1Config.h>
+
+#include <Eigen/Core>
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
@@ -24,7 +30,7 @@ std::condition_variable cv; // 条件变量，用于等待和通知
 using namespace XinTan;
 para_ros para_curr;
 para_ros para_set;
-
+ExtrinsicIMULidar e_imu_lidar;
 static std::string connect_address_cur;
 
 ros::Publisher distanceImagePublisher;
@@ -336,6 +342,37 @@ void setParameters()
         ROS_INFO("maxfps %d", para_set.lidar_setting_.maxfps);
     }
 
+    if (para_set.lidar_setting_.hmirror != para_curr.lidar_setting_.hmirror)
+    {
+        para_set.lidar_setting_.hmirror = para_curr.lidar_setting_.hmirror;
+        xtsdk->setTransMirror(para_set.lidar_setting_.hmirror, para_set.lidar_setting_.vmirror);
+        if ((para_set.lidar_setting_.hmirror && para_set.lidar_setting_.vmirror) ||
+            (!para_set.lidar_setting_.hmirror && !para_set.lidar_setting_.vmirror))
+        {
+            xtsdk->getImuExtParamters(e_imu_lidar, 1);
+        }
+        ROS_INFO("hmirror %d", para_set.lidar_setting_.hmirror);
+    }
+
+    if (para_set.lidar_setting_.vmirror != para_curr.lidar_setting_.vmirror)
+    {
+        para_set.lidar_setting_.vmirror = para_curr.lidar_setting_.vmirror;
+        xtsdk->setTransMirror(para_set.lidar_setting_.hmirror, para_set.lidar_setting_.vmirror);
+        if ((para_set.lidar_setting_.hmirror && para_set.lidar_setting_.vmirror) ||
+            (!para_set.lidar_setting_.hmirror && !para_set.lidar_setting_.vmirror))
+        {
+            xtsdk->getImuExtParamters(e_imu_lidar, 1);
+        }
+        ROS_INFO("vmirror %d", para_set.lidar_setting_.vmirror);
+    }
+
+    if (para_set.lidar_setting_.binningV != para_curr.lidar_setting_.binningV)
+    {
+        para_set.lidar_setting_.binningV = para_curr.lidar_setting_.binningV;
+        xtsdk->setBinningV(para_set.lidar_setting_.binningV);
+        ROS_INFO("binningV %d", para_set.lidar_setting_.binningV);
+    }
+
     // if (para_set.lidar_ros_.frame_id != para_curr.lidar_ros_.frame_id)
     // {
     //     para_set.lidar_ros_.frame_id = para_curr.lidar_ros_.frame_id;
@@ -378,6 +415,9 @@ void updateConfig(xtsdk_ros::xtsdk_ros1Config &config, uint32_t level)
     para_curr.lidar_setting_.usb_com = config.usb_com;
     para_curr.lidar_setting_.usb_com_name = config.usb_com_name;
     para_curr.lidar_setting_.gray_on = config.gray_on;
+    para_curr.lidar_setting_.hmirror = config.hmirror;
+    para_curr.lidar_setting_.vmirror = config.vmirror;
+    para_curr.lidar_setting_.binningV = config.binningV;
     para_curr.lidar_setting_.is_use_devconfig = config.is_use_devconfig;
 
     // para_curr.lidar_ros_.frame_id = config.frame_id;
@@ -551,7 +591,6 @@ void imgCallback(const std::shared_ptr<Frame> &frame)
     std::cout << "img: " + std::to_string(frame->frame_id) << std::endl;
 
     pointCloud2Publisher.publish(cloud);
-    // }
     if (frame->dataType == Frame::DISTANCE ||
         frame->dataType == Frame::AMPLITUDE)
     {
@@ -653,16 +692,16 @@ int getMultiFreq(const int &freq_dev)
     }
     return index;
 }
-
+int imucount = 0;
 void eventCallback(const std::shared_ptr<CBEventData> &event)
 {
-    std::cout << "event: " + event->eventstr + " " +
-                     std::to_string(event->cmdid)
-              << std::endl;
+    // std::cout << "event: " + event->eventstr + " " +
+    //                  std::to_string(event->cmdid)
+    //           << std::endl;
 
     if (event->eventstr == "sdkState")
     {
-        std::cout << "devstate= " + xtsdk->getStateStr() << std::endl;
+        // std::cout << "devstate= " + xtsdk->getStateStr() << std::endl;
         XTAPPLOG("devstate= " + xtsdk->getStateStr());
         if (xtsdk->isconnect() &&
             (event->cmdid == 0xfe)) // 端口打开后第一次连接上设备
@@ -819,6 +858,10 @@ void eventCallback(const std::shared_ptr<CBEventData> &event)
                     // is_connected += 1;
                 }
             }
+            xtsdk->setCutCorner(para_set.lidar_setting_.cut_corner);
+            // xtsdk->setTransMirror(1, 1);
+
+            xtsdk->getImuExtParamters(e_imu_lidar, 1);
             is_connected += 1;
             is_connected = is_connected > 10 ? 10 : is_connected;
         }
@@ -845,6 +888,52 @@ void eventCallback(const std::shared_ptr<CBEventData> &event)
         // }
         // std::cout << "devstate= " + xtsdk->getStateStr() << std::endl;
         // XTAPPLOG("devstate= " + xtsdk->getStateStr());
+    }
+
+    else
+    {
+        if (event->cmdid == 252)
+        {
+            if (is_connected == 0)
+            {
+                return;
+            }
+            // if (imucount > 10)
+            // {
+            // imucount = 0;
+            FrameOutImu_t *pimu = (FrameOutImu_t *)(event->data.data());
+            float imutemp = *(float *)&pimu->data[9];
+            float imuaccx = *(float *)&pimu->data[0];
+            float imuaccy = *(float *)&pimu->data[1];
+            float imuaccz = *(float *)&pimu->data[2];
+            float imugx = *(float *)&pimu->data[3];
+            float imugy = *(float *)&pimu->data[4];
+            float imugz = *(float *)&pimu->data[5];
+            uint64_t imutimestamp = *(uint64_t *)&pimu->data[10];
+            uint32_t times = 0;
+            uint32_t timems = 0;
+            if (imutimestamp > 100000000000) // ptp同步时
+            {
+                times = ((imutimestamp / 1000 - 37) % 60);
+                timems = imutimestamp % 1000;
+            }
+            else
+            {
+                times = imutimestamp / 1000;
+                timems = imutimestamp % 1000;
+            }
+            imucount++;
+            // }
+
+            if (imucount > 10)
+            {
+                std::cout << "linear_acceleration: " << imuaccx << " " << imuaccy << " " << imuaccz << std::endl;
+
+                // std::cout << times << std::endl;
+                // std::cout << timems << std::endl;
+                imucount = 0;
+            }
+        }
     }
 }
 
@@ -889,8 +978,9 @@ bool readIniFile(const std::string &filename, para_ros &para_,
         // config.usb_com_name = pt.get<std::string>("Setting.usb_com_name",
         //                                           config_default.usb_com_name);
 
-        para_.lidar_setting_.hmirror = pt.get<bool>("Setting.hmirror", false);
-        para_.lidar_setting_.vmirror = pt.get<bool>("Setting.vmirror", false);
+        config.hmirror = pt.get<bool>("Setting.hmirror", config_default.hmirror);
+        config.vmirror = pt.get<bool>("Setting.vmirror", config_default.vmirror);
+        config.binningV = pt.get<bool>("Setting.binningV", config_default.binningV);
 
         // filters
         para_.lidar_filter_.medianSize = pt.get<int>("Filters.medianSize", 5);
@@ -1009,7 +1099,6 @@ int main(int argc, char **argv)
 {
     xtsdk = new XtSdk();
     xtsdk->setCallback(eventCallback, imgCallback);
-    xtsdk->setCutCorner(para_set.lidar_setting_.cut_corner);
 
     ROS_INFO("Started");
 

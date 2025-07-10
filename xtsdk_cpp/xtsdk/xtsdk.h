@@ -61,7 +61,8 @@ namespace XinTan
         DevSTATE_ERR_NOSN = 0x17,
         DevSTATE_ERR_TEMPPARMS = 0x18,
         DevSTATE_CALIBRATING = 0x19,
-        DevSTATE_ERR_MAX = 0x1A
+        DevSTATE_ERR_NOIMUPARAM = 0x1A,
+        DevSTATE_ERR_MAX = 0x1B
     };
 
     // 命令返回状态码
@@ -271,7 +272,7 @@ namespace XinTan
 
         void setReflectivityCoef(float coef); // 设置计算发射率的系数
 
-        void setPlayState(bool is_playing);
+                void setPlayState(bool is_playing);
 
         bool getPlayState();
 
@@ -315,8 +316,11 @@ namespace XinTan
 
         bool getLensCalidata(CamParameterS &camparameter); // 获取镜头内参
 
+        bool getImuExtParamters(ExtrinsicIMULidar &imuparameters, uint8_t flag = 1); // 获取IMU外参数
+
         bool customCmd(uint8_t cmdId, XByteArray data, XByteArray &respData, uint32_t timeoutms = 1000); // 自组织命令和数据和设备交互
 
+        bool setBinningV(uint8_t flag);
         std::string &getLogtagName(); // 获取日志标志
 
     private:

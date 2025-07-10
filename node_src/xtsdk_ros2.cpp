@@ -30,6 +30,9 @@ bool update_once = false;
 double fwversionf = 0.0;
 // 动态参数结构
 
+ExtrinsicIMULidar e_imu_lidar;
+uint8_t imucount = 0;
+
 static std::string connect_address;
 
 // topic 对象
@@ -112,6 +115,8 @@ void print_curr_para()
     std::cout << "freq4: " << para_set.lidar_setting_.freq4 << std::endl;
     std::cout << "HDR: " << para_set.lidar_setting_.HDR << std::endl;
     std::cout << "hmirror: " << para_set.lidar_setting_.hmirror << std::endl;
+    std::cout << "vmirror: " << para_set.lidar_setting_.vmirror << std::endl;
+    std::cout << "binningV: " << para_set.lidar_setting_.binningV << std::endl;
     std::cout << "imgType: " << para_set.lidar_setting_.imgType << std::endl;
     std::cout << "cloud_coord: " << para_set.lidar_setting_.cloud_coord << std::endl;
     std::cout << "int1: " << para_set.lidar_setting_.int1 << std::endl;
@@ -349,6 +354,7 @@ private:
 
             para_.lidar_setting_.hmirror = pt.get<bool>("Setting.hmirror", false);
             para_.lidar_setting_.vmirror = pt.get<bool>("Setting.vmirror", false);
+            para_.lidar_setting_.binningV = pt.get<bool>("Setting.binningV", false);
             para_.lidar_setting_.usb_com = pt.get<bool>("Setting.usb_com", bool_map["usb_com"]["default"]);
             para_.lidar_setting_.gray_on = pt.get<bool>("Setting.gray_on", bool_map["gray_on"]["default"]);
             para_.lidar_setting_.is_use_devconfig = pt.get<bool>("Setting.is_use_devconfig", bool_map["is_use_devconfig"]["default"]);
@@ -407,8 +413,9 @@ private:
             para_.lidar_setting_.is_use_devconfig = bool_map["is_use_devconfig"]["default"];
             para_.lidar_setting_.usb_com_name = general_map["usb_com_name"];
 
-            para_.lidar_setting_.hmirror = false;
-            para_.lidar_setting_.vmirror = false;
+            para_.lidar_setting_.hmirror = bool_map["hmirror"]["default"];
+            para_.lidar_setting_.vmirror = bool_map["vmirror"]["default"];
+            para_.lidar_setting_.binningV = bool_map["binningV"]["default"];
 
             // filters
             para_.lidar_filter_.medianSize = 5;
@@ -791,6 +798,31 @@ private:
             {
                 para_->lidar_setting_.is_use_devconfig = param.as_bool();
             }
+            else if (param.get_name() == "hmirror")
+            {
+                para_->lidar_setting_.hmirror = param.as_bool();
+                xtsdk->setTransMirror(para_->lidar_setting_.hmirror, para_->lidar_setting_.vmirror);
+                if ((para_->lidar_setting_.hmirror && para_->lidar_setting_.hmirror) ||
+                    (!para_->lidar_setting_.hmirror && !para_->lidar_setting_.hmirror))
+                {
+                    xtsdk->getImuExtParamters(e_imu_lidar, 1);
+                }
+            }
+            else if (param.get_name() == "vmirror")
+            {
+                para_->lidar_setting_.vmirror = param.as_bool();
+                xtsdk->setTransMirror(para_->lidar_setting_.hmirror, para_->lidar_setting_.vmirror);
+                if ((para_->lidar_setting_.hmirror && para_->lidar_setting_.hmirror) ||
+                    (!para_->lidar_setting_.hmirror && !para_->lidar_setting_.hmirror))
+                {
+                    xtsdk->getImuExtParamters(e_imu_lidar, 1);
+                }
+            }
+            else if (param.get_name() == "binningV")
+            {
+                para_->lidar_setting_.binningV = param.as_bool();
+                xtsdk->setBinningV(para_->lidar_setting_.binningV);
+            }
             else if (param.get_name() == "maxfps")
             {
                 para_->lidar_setting_.maxfps = param.as_int();
@@ -865,17 +897,23 @@ void eventCallback(const std::shared_ptr<CBEventData> &event)
         if (xtsdk->isconnect() && (event->cmdid == 0xfe)) // 端口打开后第一次连接上设备
         {
             xtsdk->stop();
-
             RespDevInfo devinfo;
             xtsdk->getDevInfo(devinfo);
+            transform(devinfo.sn.begin(), devinfo.sn.end(), devinfo.sn.begin(), ::tolower);
+            transform(devinfo.fwVersion.begin(), devinfo.fwVersion.end(), devinfo.fwVersion.begin(), ::tolower);
+
             std::cout << std::endl
-                      << devinfo.fwVersion.c_str() << std::endl;
+                      << devinfo.fwVersion << std::endl;
             std::cout << devinfo.sn.c_str() << devinfo.chipidStr << std::endl;
 
             XTAPPLOG("DEV SN=" + devinfo.sn);
+
             int fwlen = devinfo.fwVersion.length();
-            fwversionf = atof(&(devinfo.fwVersion[fwlen - 4]));
-            std::cout << "fwversionf " << fwversionf << std::endl;
+            int vpos = devinfo.fwVersion.find('v');
+
+            std::string verfstr = devinfo.fwVersion.substr(vpos + 1, fwlen - 2);
+            double fwversionf = atof(verfstr.c_str());
+            std::cout << "fw release version=" << fwversionf << "  str=" << verfstr << std::endl;
             if (fwversionf >= 2.20)
             {
                 std::cout << "> 2.20" << std::endl;
@@ -940,6 +978,11 @@ void eventCallback(const std::shared_ptr<CBEventData> &event)
                     std::cout << "********************************************************" << std::endl;
                 }
             }
+
+            // xtsdk->setBinningV(1); // 0为不设定binningv 1为设定binningv
+            // xtsdk->setTransMirror(1, 1);//如果雷达绕深度方向旋180度安装，需设定此函数，保证点云方向正确
+            xtsdk->getImuExtParamters(e_imu_lidar, 1); // 获取imu to lidar外参 0为获取默认外参，1为获取标定外参，
+            // 如果需要setTransMirr需要设定 必须在设定之后 获取外参
             is_connected += 1;
             is_connected = is_connected > 10 ? 10 : is_connected;
             std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -947,6 +990,54 @@ void eventCallback(const std::shared_ptr<CBEventData> &event)
             if (is_connected > 1)
             {
                 updateParaFromDev();
+            }
+        }
+    }
+    else if (event->eventstr == "devState")
+    {
+    }
+    else
+    {
+        if (event->cmdid == 252)
+        {
+            if (is_connected == 0)
+            {
+                return;
+            }
+            // if (imucount > 10)
+            // {
+            // imucount = 0;
+            FrameOutImu_t *pimu = (FrameOutImu_t *)(event->data.data());
+            float imutemp = *(float *)&pimu->data[9];
+            float imuaccx = *(float *)&pimu->data[0];
+            float imuaccy = *(float *)&pimu->data[1];
+            float imuaccz = *(float *)&pimu->data[2];
+            float imugx = *(float *)&pimu->data[3];
+            float imugy = *(float *)&pimu->data[4];
+            float imugz = *(float *)&pimu->data[5];
+            uint64_t imutimestamp = *(uint64_t *)&pimu->data[10];
+            uint32_t times = 0;
+            uint32_t timems = 0;
+            if (imutimestamp > 100000000000) // ptp同步时
+            {
+                times = ((imutimestamp / 1000 - 37) % 60);
+                timems = imutimestamp % 1000;
+            }
+            else
+            {
+                times = imutimestamp / 1000;
+                timems = imutimestamp % 1000;
+            }
+            imucount++;
+            // }
+
+            if (imucount > 10)
+            {
+                std::cout << "linear_acceleration: " << imuaccx << " " << imuaccy << " " << imuaccz << std::endl;
+
+                // std::cout << times << std::endl;
+                // std::cout << timems << std::endl;
+                imucount = 0;
             }
         }
     }

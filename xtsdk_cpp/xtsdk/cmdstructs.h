@@ -123,7 +123,7 @@ struct DevCfg_t{
 struct FrameOutImu_t{
     uint16_t mark;//0x55AA
     uint16_t flags;
-    uint32_t data[18];
+    uint32_t data[22];//9+1+2+9
 };
 #pragma pack(pop)  // 恢复原始的对齐方式
 

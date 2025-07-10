@@ -346,3 +346,19 @@ Sets whether to obtain grayscale images.
 - bool setMultiModFreq(ModulationFreq freqType1, ModulationFreq freqType2, ModulationFreq freqType3, ModulationFreq freqType4 = FREQ_24M);
 
 Sets the corresponding frequencies for three integration time tiers.
+
+
+
+- bool setBinningV(uint8_t flag);
+
+Sets the vertical binning mode.
+    0: Do not set binningV.
+    1: Set binningV.
+
+- bool getImuExtParamters(ExtrinsicIMULidar &imuparameters, uint8_t flag = 1);
+
+Retrieves the extrinsic parameters from IMU to LiDAR.
+    0: Get the default extrinsic parameters.
+    1: Get the calibrated extrinsic parameters.
+    If you need to call setTransMirr, make sure to set it first before retrieving the extrinsic parameters.
+四

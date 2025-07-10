@@ -18,6 +18,7 @@ struct lidar_setting
     bool start_stream;
     bool hmirror;
     bool vmirror;
+    bool binningV;
 
     bool usb_com;
     bool gray_on;

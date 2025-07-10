@@ -36,6 +36,35 @@ namespace XinTan
         ocX = 0.0;
         ocY = 0.0;
 
+        e_imu_lidar_default_g = {
+            (float)0.0,
+            (float)0.7071068,
+            (float)0.0,
+            (float)0.7071068,
+            (float)-0.02932,
+            (float)0.023823,
+            (float)-0.001697,
+        };
+        e_imu_lidar_default_q = {
+            (float)0.0,
+            (float)0.7071068,
+            (float)0.0,
+            (float)0.7071068,
+            (float)-0.02932,
+            (float)0.020403,
+            (float)-0.003163,
+        };
+        mirror_q = {
+            (float)0.0,
+            (float)1.0,
+            (float)0.0,
+            (float)0.0,
+            (float)-0.02932,
+            (float)0.020403,
+            (float)-0.003163,
+        };
+        e_imu_lidar_ = e_imu_lidar_default_g;
+        updateInverseExtrinsic(e_imu_lidar_, e_imu_lidar_mirror_);
         hmirror = false;
         vmirror = false;
         cutMinAmp = 0;
@@ -391,6 +420,57 @@ namespace XinTan
             }
         }
         frame->hasPointcloud = true;
+    }
+
+    void CartesianTransform::updateInverseExtrinsic(const ExtrinsicIMULidar &extrinsic, ExtrinsicIMULidar &mirror_extrinsic)
+    {
+        // 激光雷达绕X轴旋转180度对应的四元数
+        float q_rotation[4] = {0, 1, 0, 0}; // [qw, qx, qy, qz] 为绕X轴旋转180度的四元数
+
+        // 更新四元数
+        float q_current[4] = {extrinsic.qw, extrinsic.qx, extrinsic.qy, extrinsic.qz};
+        float q_new[4];
+        Utils::quaternionMultiply(q_rotation, q_current, q_new);
+
+        mirror_extrinsic.qw = q_new[0];
+        mirror_extrinsic.qx = q_new[1];
+        mirror_extrinsic.qy = q_new[2];
+        mirror_extrinsic.qz = q_new[3];
+
+        // 更新平移
+        float R_x_180[3][3] = {
+            {1, 0, 0},
+            {0, -1, 0},
+            {0, 0, -1}};
+
+        mirror_extrinsic.tx = R_x_180[0][0] * extrinsic.tx + R_x_180[0][1] * extrinsic.ty + R_x_180[0][2] * extrinsic.tz;
+        mirror_extrinsic.ty = R_x_180[1][0] * extrinsic.tx + R_x_180[1][1] * extrinsic.ty + R_x_180[1][2] * extrinsic.tz;
+        mirror_extrinsic.tz = R_x_180[2][0] * extrinsic.tx + R_x_180[2][1] * extrinsic.ty + R_x_180[2][2] * extrinsic.tz;
+    }
+
+    void CartesianTransform::updateImuExtParamters(const ExtrinsicIMULidar &e_imu_lidar)
+    {
+        if ((e_imu_lidar_.qw == e_imu_lidar.qw) && (e_imu_lidar_.qx == e_imu_lidar.qw) &&
+            (e_imu_lidar_.qy == e_imu_lidar.qy) && (e_imu_lidar_.qz == e_imu_lidar.qz) &&
+            (e_imu_lidar_.tx == e_imu_lidar.tx) && (e_imu_lidar_.ty == e_imu_lidar.ty) &&
+            (e_imu_lidar_.tz == e_imu_lidar.tz))
+            return;
+
+        e_imu_lidar_ = e_imu_lidar;
+        updateInverseExtrinsic(e_imu_lidar_, e_imu_lidar_mirror_);
+    }
+
+    ExtrinsicIMULidar CartesianTransform::getCurrentImuExtParamters()
+    {
+        if (hmirror && vmirror)
+        {
+            return e_imu_lidar_mirror_;
+        }
+
+        else
+        {
+            return e_imu_lidar_;
+        }
     }
 
 } // end namespace XinTan

@@ -88,6 +88,9 @@ bool_para:
   usb_com: true
   gray_on: true
   is_use_devconfig: true
+  hmirror: false
+  vmirror: false
+  binningV: false
   # use_sim_time: false
 
 general_para:
@@ -121,4 +124,7 @@ default:
   topic_name: points
   usb_com: true
   gray_on: true
+  hmirror: false
+  vmirror: false
+  binningV: false
   # use_sim_time: false
