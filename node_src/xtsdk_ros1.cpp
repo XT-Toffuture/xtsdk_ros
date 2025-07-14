@@ -6,8 +6,6 @@
 #include <sensor_msgs/PointCloud.h>
 #include <sensor_msgs/SetCameraInfo.h>
 #include <sensor_msgs/Imu.h>
-#include <livox_ros_driver/CustomMsg.h>
-#include <livox_ros_driver/CustomPoint.h>
 #include <dynamic_reconfigure/server.h>
 #include <pcl_ros/point_cloud.h>
 #include <pcl_conversions/pcl_conversions.h>
@@ -17,7 +15,6 @@
 #include <boost/property_tree/ini_parser.hpp>
 #include <xtsdk_ros/xtsdk_ros1Config.h>
 
-#include <Eigen/Core>
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
