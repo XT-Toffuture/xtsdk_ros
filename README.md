@@ -17,10 +17,25 @@
 	使用时请设置修改默认连接的ip地址
 ### ROS1	
 	使用时请先修改 cfg/xtsdk_ros1.cfg里
-	gen.add("connect_address",     str_t,  0,  	"connect address ip/serial", "192.168.2.101")   里的ip地址
+	如果ip连接
+		gen.add("usb_com",           bool_t, 0,  	"SET USB",  False)
+		gen.add("connect_address",     str_t,  0,  	"connect address ip/serial", "192.168.2.101")   里的ip地址,此为激光雷达地址
+	如果usb连接
+		sudo chmod 777 /dev/ttyACM0
+		gen.add("usb_com",           bool_t, 1,  	"SET USB",  True)
+
+	然后进行编译
+
 ### ROS2
 	使用时请先修改 cfg/xtsdk_ros2.yaml里
-	connect_address: 192.168.2.101  里的ip地址
+	如果ip连接
+		usb_com: false
+		connect_address: 192.168.0.101  里的ip地址,此为激光雷达地址
+	如果usb连接
+		sudo chmod 777 /dev/ttyACM0
+		usb_com: true
+
+
 	
 	
 
