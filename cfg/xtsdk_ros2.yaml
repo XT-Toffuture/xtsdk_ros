@@ -122,8 +122,8 @@ default:
   start_stream: true
   frame_id: sensor_frame
   topic_name: points
-  usb_com: true
-  gray_on: true
+  usb_com: false
+  gray_on: false
   hmirror: false
   vmirror: false
   binningV: false
